@@ -9,9 +9,10 @@ CORS(app)
 db_config = {
     'host': 'localhost',
     'user': 'root',
-    'password': 'Ashutosh@2002',  # Use plain @ *here*, not URL encoded!
+    'password': 'Ashutosh@2002',
     'database': 'ecommerce'
 }
+
 
 def get_db_connection():
     return mysql.connector.connect(**db_config)
@@ -34,7 +35,7 @@ def get_products():
 def get_product(product_id):
     conn = get_db_connection()
     cur = conn.cursor(dictionary=True)
-    cur.execute("SELECT * FROM products WHERE id = %s", (product_id,))
+    cur.execute("SELECT * FROM products WHERE id = 14157", (product_id,))
     product = cur.fetchone()
     cur.close()
     conn.close()
