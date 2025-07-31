@@ -1,4 +1,3 @@
-# app.py
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 import mysql.connector
@@ -13,10 +12,10 @@ db_config = {
     'database': 'ecommerce'
 }
 
-
 def get_db_connection():
     return mysql.connector.connect(**db_config)
 
+# Endpoint to get a paginated or all products (for frontend product list)
 @app.route('/api/products', methods=['GET'])
 def get_products():
     page = int(request.args.get('page', 1))
@@ -24,25 +23,29 @@ def get_products():
     offset = (page - 1) * per_page
 
     conn = get_db_connection()
-    cur = conn.cursor(dictionary=True)
-    cur.execute("SELECT * FROM products LIMIT %s OFFSET %s", (per_page, offset))
-    products = cur.fetchall()
-    cur.close()
-    conn.close()
+    try:
+        with conn.cursor(dictionary=True, buffered=True) as cur:
+            cur.execute("SELECT * FROM products LIMIT %s OFFSET %s", (per_page, offset))
+            products = cur.fetchall()
+    finally:
+        conn.close()
     return jsonify(products), 200
 
+# Endpoint to get a single product by ID
 @app.route('/api/products/<int:product_id>', methods=['GET'])
 def get_product(product_id):
     conn = get_db_connection()
-    cur = conn.cursor(dictionary=True)
-    cur.execute("SELECT * FROM products WHERE id = 14157", (product_id,))
-    product = cur.fetchone()
-    cur.close()
-    conn.close()
+    try:
+        with conn.cursor(dictionary=True, buffered=True) as cur:
+            cur.execute("SELECT * FROM products WHERE id = %s", (product_id,))
+            product = cur.fetchone()
+    finally:
+        conn.close()
     if product is None:
         return jsonify({"error": "Product not found"}), 404
     return jsonify(product), 200
 
+# Error handler for unknown routes
 @app.errorhandler(404)
 def not_found(error):
     return jsonify({"error": "Resource not found"}), 404
