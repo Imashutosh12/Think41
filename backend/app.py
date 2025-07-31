@@ -15,14 +15,13 @@ db_config = {
 def get_db_connection():
     return mysql.connector.connect(**db_config)
 
-# ----------- Products Endpoints ------------
+# -------- Products API --------
 
 @app.route('/api/products', methods=['GET'])
 def get_products():
     page = int(request.args.get('page', 1))
     per_page = int(request.args.get('per_page', 10))
     offset = (page - 1) * per_page
-
     conn = get_db_connection()
     try:
         with conn.cursor(dictionary=True, buffered=True) as cur:
@@ -57,9 +56,8 @@ def get_product(product_id):
         return jsonify({"error": "Product not found"}), 404
     return jsonify(product), 200
 
-# ----------- Departments API (Milestone 5) ------------
+# -------- Departments API (Milestone 5+) --------
 
-# List all departments and include product counts for each
 @app.route('/api/departments', methods=['GET'])
 def get_departments():
     conn = get_db_connection()
@@ -76,7 +74,6 @@ def get_departments():
         conn.close()
     return jsonify({"departments": departments}), 200
 
-# Get details (name, id) for one department by id
 @app.route('/api/departments/<int:department_id>', methods=['GET'])
 def get_department(department_id):
     conn = get_db_connection()
@@ -90,7 +87,6 @@ def get_department(department_id):
         return jsonify({"error": "Department not found"}), 404
     return jsonify(department), 200
 
-# Get all products for a given department id
 @app.route('/api/departments/<int:department_id>/products', methods=['GET'])
 def get_department_products(department_id):
     conn = get_db_connection()
@@ -101,7 +97,6 @@ def get_department_products(department_id):
             dep = cur.fetchone()
             if not dep:
                 return jsonify({"error": "Department not found"}), 404
-
             # Get all products in that department
             cur.execute("""
                 SELECT p.id, p.name, p.category, p.brand, p.retail_price, p.sku
@@ -113,7 +108,8 @@ def get_department_products(department_id):
         conn.close()
     return jsonify({"department": dep["name"], "products": products}), 200
 
-# ----------- General Error Handlers ------------
+# -------- Error Handlers --------
+
 @app.errorhandler(404)
 def not_found(error):
     return jsonify({"error": "Resource not found"}), 404
