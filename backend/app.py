@@ -15,7 +15,8 @@ db_config = {
 def get_db_connection():
     return mysql.connector.connect(**db_config)
 
-# Get paginated product list, joined to departments for readable names
+# ----------- Products Endpoints ------------
+
 @app.route('/api/products', methods=['GET'])
 def get_products():
     page = int(request.args.get('page', 1))
@@ -37,7 +38,6 @@ def get_products():
         conn.close()
     return jsonify(products), 200
 
-# Get single product by id, joined to departments
 @app.route('/api/products/<int:product_id>', methods=['GET'])
 def get_product(product_id):
     conn = get_db_connection()
@@ -57,18 +57,63 @@ def get_product(product_id):
         return jsonify({"error": "Product not found"}), 404
     return jsonify(product), 200
 
-# List all unique departments (for admin or dropdowns)
+# ----------- Departments API (Milestone 5) ------------
+
+# List all departments and include product counts for each
 @app.route('/api/departments', methods=['GET'])
 def get_departments():
     conn = get_db_connection()
     try:
         with conn.cursor(dictionary=True, buffered=True) as cur:
-            cur.execute("SELECT id, name FROM departments")
+            cur.execute("""
+                SELECT d.id, d.name, COUNT(p.id) AS product_count
+                FROM departments d
+                LEFT JOIN products p ON d.id = p.department_id
+                GROUP BY d.id, d.name
+            """)
             departments = cur.fetchall()
     finally:
         conn.close()
-    return jsonify(departments), 200
+    return jsonify({"departments": departments}), 200
 
+# Get details (name, id) for one department by id
+@app.route('/api/departments/<int:department_id>', methods=['GET'])
+def get_department(department_id):
+    conn = get_db_connection()
+    try:
+        with conn.cursor(dictionary=True, buffered=True) as cur:
+            cur.execute("SELECT id, name FROM departments WHERE id = %s", (department_id,))
+            department = cur.fetchone()
+    finally:
+        conn.close()
+    if not department:
+        return jsonify({"error": "Department not found"}), 404
+    return jsonify(department), 200
+
+# Get all products for a given department id
+@app.route('/api/departments/<int:department_id>/products', methods=['GET'])
+def get_department_products(department_id):
+    conn = get_db_connection()
+    try:
+        with conn.cursor(dictionary=True, buffered=True) as cur:
+            # Get department name (for response)
+            cur.execute("SELECT name FROM departments WHERE id = %s", (department_id,))
+            dep = cur.fetchone()
+            if not dep:
+                return jsonify({"error": "Department not found"}), 404
+
+            # Get all products in that department
+            cur.execute("""
+                SELECT p.id, p.name, p.category, p.brand, p.retail_price, p.sku
+                FROM products p
+                WHERE p.department_id = %s
+            """, (department_id,))
+            products = cur.fetchall()
+    finally:
+        conn.close()
+    return jsonify({"department": dep["name"], "products": products}), 200
+
+# ----------- General Error Handlers ------------
 @app.errorhandler(404)
 def not_found(error):
     return jsonify({"error": "Resource not found"}), 404
